@@ -1,46 +1,35 @@
-USE [MPVTT200_TEST_APP]
-GO
-
-/****** Object:  StoredProcedure [dbo].[CheckTableExistenceForList]    Script Date: 23/02/2024 4:51:08 CH ******/
-SET ANSI_NULLS ON
-GO
-
-SET QUOTED_IDENTIFIER ON
-GO
-
-CREATE PROCEDURE [dbo].[CheckTableExistenceForList]
+alter PROCEDURE [dbo].[CheckTableExistenceForList]
     @TableList NVARCHAR(MAX),
-	@TableExists NVARCHAR(4000) OUTPUT,
-	@TableNotExists NVARCHAR(4000) OUTPUT
+    @TableExists NVARCHAR(4000) OUTPUT,
+    @TableNotExists NVARCHAR(4000) OUTPUT
 AS
 BEGIN
-    CREATE TABLE #TempTableList (ID INT IDENTITY(1,1),TableName NVARCHAR(128))
+    DECLARE @TableName NVARCHAR(128)
+    DECLARE @TempTableList TABLE (ID INT IDENTITY(1,1),TableName NVARCHAR(128))
 
-    INSERT INTO #TempTableList (TableName)
-    SELECT value FROM STRING_SPLIT(@TableList, ',')
+    INSERT INTO @TempTableList (TableName)
+    SELECT Item FROM STRING_SPLIT(@TableList, ',')
 
-    DECLARE @i int, @c int, @TableName NVARCHAR(128)
-	select @TableExists ='', @TableNotExists =''
+    DECLARE @i INT = 1, @c INT = (SELECT COUNT(*) FROM @TempTableList)
 
-	SELECT @i=1,@c=COUNT(1) from #TempTableList
-	while @i<=@c begin
-		
-		SELECT @TableName=TableName from #TempTableList where ID=@i
-		IF OBJECT_ID('tempdb..'+@TableName) IS NOT NULL --IF OBJECT_ID('linh_ex', 'U')  bảng thật
-        BEGIN
-			SELECT @TableExists = @TableExists + @TableName+', ';
-        END
+    SET @TableExists = ''
+    SET @TableNotExists = ''
+
+    WHILE @i <= @c
+    BEGIN
+        SELECT @TableName = TableName FROM @TempTableList WHERE ID = @i
+
+        IF OBJECT_ID(@TableName) IS NOT NULL --IF OBJECT_ID('linh_ex', 'U')  bảng thật
+            SET @TableExists = CONCAT(@TableExists, @TableName, ', ')
         ELSE
-        BEGIN
-            SELECT @TableNotExists = @TableNotExists + @TableName+', ';
-        END
+            SET @TableNotExists = CONCAT(@TableNotExists, @TableName, ', ')
 
-		SELECT @i=@i+1
-	end
-	IF @TableExists    !='' SET @TableExists = LEFT(@TableExists, LEN(@TableExists) - 1)
-    IF @TableNotExists !='' SET @TableNotExists = LEFT(@TableNotExists, LEN(@TableNotExists) - 1)
+        SET @i = @i + 1
+    END
 
+    IF LEN(@TableExists) > 0
+        SET @TableExists = LEFT(@TableExists, LEN(@TableExists) - 1)
+    
+    IF LEN(@TableNotExists) > 0
+        SET @TableNotExists = LEFT(@TableNotExists, LEN(@TableNotExists) - 1)
 END
-GO
-
-
